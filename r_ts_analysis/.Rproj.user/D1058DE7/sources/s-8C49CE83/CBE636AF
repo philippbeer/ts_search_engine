@@ -1,0 +1,28 @@
+{
+    "id": "CBE636AF",
+    "path": null,
+    "project_path": null,
+    "type": "object_explorer",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1627296333260.0,
+    "source_on_save": false,
+    "relative_order": 5,
+    "properties": {
+        "id": "8bc6f350059747b794c42b57ffab24f9",
+        "name": "alignment",
+        "title": "alignment",
+        "language": "R",
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 7310305785733593634,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1627296333260,
+    "read_only": false,
+    "read_only_alternatives": []
+}

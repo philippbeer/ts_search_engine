@@ -1,0 +1,112 @@
+
+## preparation for final assignment
+library(DT)
+library(tidyverse)
+
+## Listing of steps
+
+### load data
+
+setwd("~/workspace/UNIC_applied_forecasting/week_5")
+train <- train <- read.csv("./monatszahlen2005arbeitsmarkt.csv",stringsAsFactors = F, sep=",")
+## tail data and review records
+datatable(tail(train, 100))
+
+## drop irrelevant columns
+train$VERAEND_VORMONAT_PROZENT <- NULL
+train$VERAEND_VORJAHRESMONAT_PROZENT <- NULL
+train$VORJAHRESWERT <- NULL
+train$ZWOELF_MONATE_MITTELWERT <- NULL
+
+min(train$MONAT) # 200601
+max(train$MONAT) # 202004
+
+# convert long to wide format
+train <- train %>% spread(MONATSZAHL, WERT)
+# drop unemployment percentage
+train$Arbeitslosenquote <- NULL
+
+train <- train[(train$AUSPRAEGUNG=="insgesamt"),]
+train$AUSPRAEGUNG <- NULL
+
+# rename columns
+names(train) <- c("Year","Month", "Unemployed", "Registered_Open_Positions")
+
+## observe data
+datatable(tail(train, 100))
+
+### autoplot data
+autoplot(ts(train$Unemployed, frequency = 12), ylab="Abs. No. of Umemployed in Munich")
+
+
+### sub-set and limit where necessary
+autoplot(tail(ts(train$Unemployed, frequency = 12),4), ylab="Abs. No. of Umemployed in Munich")
+
+### check for missing entries
+missing <- train[(is.na(train$Unemployed)==T) | (is.na(train$Registered_Open_Positions)),]
+datatable(missing) # --> no entries
+nrow(missing)  # --> no missing values
+
+### test various methods to treat them and decide for the best one
+
+#### create playground and profiles
+
+
+## fix missing values in playground and plot results
+## visually decide for fix method / or create fixes for existing values and plot together
+
+# apply fix method & validate no missing data are left
+
+## handle extreme values
+# create box and density plots (see previous lecture on handling the data)
+par(mfrow=c(2,2))
+boxplot(train$Unemployed, main="Unemployed")
+plot(density(train$Unemployed), main="Unemployed")
+boxplot(train$Registered_Open_Positions, main="Registered Open Positions")
+plot(density(train$Registered_Open_Positions), main="Registered Open Positions")
+# registered open positions has bi-modal distribution --> mean more robust than median
+
+## fix upper and lower bounds and review data again
+# define limits at 0.99 / 0.01 quantities
+LimitUp <- quantile(train$Unemployed,0.98) # setting bound
+# lower limit not required as there are no extreme values there
+
+# replace extreme values with the threshold values
+train[train$Unemployed>LimitUp,]$Unemployed <- LimitUp
+
+# re-inspect the values
+autoplot(ts(train$Unemployed, frequency=12), ylab="Abs. No. of Umemployed in Munich")
+par(mfrow=c(1,2))
+boxplot(train$Unemployed, main="Abs. No. of Umemployed in Munich");
+plot(density(train$Unemployed),main="Abs. No. of Umemployed in Munich")
+
+
+# create Date Colum
+
+
+# Exploratory Data Analysis
+
+# Execute statistical analysis
+#inspect results
+# e.g. look at a weekly pattern
+# review season plots
+
+# Forecasting
+# split data into test and train set
+# define error measure --> smape
+
+# decide multiplicative vs. additive series
+
+# add relevant features for multiple linear regression
+# e.g. lags or review what alternative data is available
+
+
+#  inspect correlations
+
+# validation of forecasting alternatives
+
+# plot including current winner
+
+# add NN
+
+# add combination
