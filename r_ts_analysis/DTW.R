@@ -53,8 +53,8 @@ for (qry_row in 1:no_rows) {
     if((tmp_shortest_dist == 0) | (tmp_dtw$distance < tmp_shortest_dist)) {
       #sprintf("updating row %d with row %d", qry_row, tmpl_row)
       print("#########")
-      print(paste("updating row ", qry_row))
-      print(paste("with row ", tmpl_row))
+      print(paste("updating row", qry_row))
+      print(paste("with row", tmpl_row))
       tmp_shortest_dist <- tmp_dtw$distance
       tmp_row <- tmpl_row
     }
