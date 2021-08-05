@@ -70,6 +70,7 @@ def compute_fr_ranges(ts_t: Tuple[str,np.array,np.array]) -> pd.DataFrame:
                               'fhat': fhat,
                               'PSD': PSD,
                               'freq': freq,
+                           'freq_approx_idx': freq_approx_idx,
                          'freq_approx': f_ranges[freq_approx_idx]})
     # zero frequencies need to stay 0
     df_res.loc[df_res['freq']==0, 'freq_approx'] = 0
@@ -78,6 +79,19 @@ def compute_fr_ranges(ts_t: Tuple[str,np.array,np.array]) -> pd.DataFrame:
 def concat_dfs(df_l: List[Tuple[str,str]]) -> pd.DataFrame:
     frames = [elm[1] for elm in df_l]
     return pd.concat(frames)
+
+def compress_series(fhat: np.array,
+                    PSD: np.array) -> np.array:
+    thresh = np.percentile(PSD, .9)
+    idx = PSD > thresh
+    PSDcore = PSD * idx
+    fhat = idx * fhat
+    ffilt = np.fft.ifft(fhat)
+    return (PSDcore, ffilt)
+
+def compare_approximation():
+    pass
+    
 
 def main():
     no_prc = cpu_count()-1
@@ -92,7 +106,7 @@ def main():
 
     ts_l = []
     f_ranges = 10**np.linspace(-1,3,410)
-    for ts_name in df.iloc[:,0]:
+    for ts_name in tqdm(df.iloc[:,0]):
         ar = np.array(df[df['V1']==ts_name].iloc[:,1:].dropna(axis=1))[0]
         ts_l.append((ts_name, ar, f_ranges))
     approx_l = []
