@@ -111,8 +111,7 @@ def main():
         ts_l.append((ts_name, ar, f_ranges))
     approx_l = []
     with Pool(processes=no_prc) as pool:
-        for res in tqdm(pool.imap_unordered(compute_fr_ranges, ts_l),
-                        total=len(ts_l)):
+        for res in tqdm(pool.imap_unordered(compute_fr_ranges, ts_l)):
             approx_l.append(res)
         # approx_l = pool.map(compute_fr_ranges, ts_l)
 
@@ -123,3 +122,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
