@@ -3,3 +3,6 @@ m5_data/*
 r_ts_analysis/*
 df_approx*.*
 df_approx.*
+df*.*csv
+*Untitled.ipynb
+*Untitled-checkpoint.ipynb

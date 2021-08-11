@@ -1,5 +1,6 @@
-from multiprocessing import Pool, cpu_count
+from  multiprocessing import Pool, cpu_count
 import os
+import random
 from typing import Tuple, Set
 
 import numpy as np
@@ -7,14 +8,18 @@ import pandas as pd
 from tqdm import tqdm
 
 # loading results
-df = pd.read_csv("df_approx.csv")
-#df = df.iloc[:10000,:]
 
-def write_f_to_cols(df: pd.DataFrame):
-    df['freq_approx_idx'] = df['freq_approx_idx'].astype(str)
+def write_f_to_cols(data: Tuple[str,pd.DataFrame]) -> pd.DataFrame:
+    N = 5
+    ts_name = data[0]
+    df = data[1]
 
-    freq_l = list(df['freq_approx_idx'])
-    ts_name = df.at[0,0]
+    
+    df['freq_approx_idx'] = df['freq_approx_idx'].astype(int)
+
+    freq_l = df['freq_approx_idx'].tolist()
+
+    idx_largest_freq = sorted(range(len(freq_l)), key= lambda x: freq_l[x])[-N:]
 
     df_res = pd.DataFrame({'ts_name': ts_name,
                            'freq_ids': freq_l})
@@ -56,19 +61,52 @@ def compare_frequencies(data: Tuple[str,Set[int]]) -> pd.DataFrame:
     
 def main():
     no_prc = cpu_count()-1
+    df = pd.read_csv("df_approx.csv")
+    # df = df[['ts_name', 'freq_approx_idx']]
 
-    ts_l = f[]
+    # rand_ts_name = random.sample(df['ts_name'].tolist(), 20)
+    # df = df[df['ts_name'].isin(rand_ts_name)]
+    # df = df.groupby('ts_name').apply(lambda x: x.sample(min(len(x.shape[0], 25))))
+    print("df read with shape: {}".format(df.shape))
+
+    ts_l = []
+    df_res = pd.DataFrame(columns=['ts_name', 'freq_ids'])
     for ts in tqdm(df.groupby("ts_name")):
-        ts_l.append(ts)
+        # ts_l.append(ts)
 
-    freq_df_l = []
-    with Pool(processes=no_prc) as pool:
-        for res in tqdm(pool.imap_unordered(write_f_to_cols, ts_l), total=len(ts_l)):
-            freq_df_l.append(res)
+        N = 5
+        ts_name = ts[0]
+        df_sub = ts[1]
 
-    df_res = pd.concat(freq_df_l)
+    
+        df_sub['freq_approx_idx'] = df_sub['freq_approx_idx'].astype(int)
 
-    df_res.to_csv("df_freq_l.csv", index=Fales)
+        freq_l = df_sub['freq_approx_idx'].tolist()
+        PSD_l = df_sub['PSD'].tolist()
+
+        idx_powerful_PSD = sorted(range(len(PSD_l)), key= lambda
+                                  x: PSD_l[x])[-N:]
+
+    
+        # get the largest values by their index into the list
+        freq_idx = [freq_l[i] for i in idx_powerful_PSD]
+        # print("\nindexes: {}".format(idx_powerful_PSD))
+        # print("values: {}".format(freq_idx))
+    
+        df_res = df_res.append(pd.DataFrame({'ts_name': ts_name,
+                                             'freq_ids': str(freq_idx)},
+                                            index=[0]))
+ 
+        
+    # freq_df_l = []
+    # with Pool(processes=no_prc) as pool:
+    #     for res in tqdm(pool.imap_unordered(write_f_to_cols, ts_l),
+    #                     total=len(ts_l)):
+    #         freq_df_l.append(res)
+
+    # df_res = pd.concat(freq_df_l) 
+    df_res.reset_index(inplace=False)
+    df_res.to_csv("df_freq_l.csv", index=False)
 
     # q_thresh = 0.9
     # cols = ['ts_1', 'ts_2', 'f_intersec']
