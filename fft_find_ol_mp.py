@@ -38,6 +38,7 @@ def main():
     df = pd.read_csv("df_freq_l.csv",
                      converters={'freq_ids': lambda x: eval(x)})
     # df = df.sample(10000)
+    df = df[df['ts_name'].str.contains('H')]
     print("df with shape {} read".format(df.shape))
     df_res = pd.DataFrame(columns=['ts_1', 'ts_2', 'matching_score'])
     ts_l = []
