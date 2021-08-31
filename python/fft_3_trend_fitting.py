@@ -2,7 +2,7 @@ from collections import namedtuple
 from datetime import datetime
 import math
 from multiprocessing import cpu_count, Pool
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -87,25 +87,73 @@ def get_trend_coefs(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
     return res
 
 
+def split_df(df: pd.DataFrame,
+             no_items: int = 7) -> List[pd.DataFrame]:
+    l = df.shape[0]
+    start = 0
+    stop = increment = int(np.floor(l/no_items))
+    
+    df_l = []
+    while (stop<df.shape[0]):
+        df_tmp = df[start:stop]
+        df_l.append(df_tmp)
+        start = stop
+        stop += increment
+
+    # add missing last rows
+    df_tmp = df[start:]
+    df_l.append(df_tmp)
+
+    return df_l
+
+def set_global_df(df: pd.DataFrame):
+    global df_g
+    df_g = df
+    
+def get_stats_mp(df: pd.DataFrame) -> pd.DataFrame:
+    df.reset_index(drop=True, inplace=True)
+    res = df.apply(get_trend_coefs, axis=1, ref_data=df_g)
+    df_stats = pd.DataFrame(list(res))
+    df_res = pd.merge(df, df_stats, left_index=True,
+                      right_index=True)
+    return df_res
+    
 def main():
+    start_time = datetime.now()
+    no_prc = cpu_count()-1
     tqdm.pandas()
     # read reference data
     df_ts = read_data()
     print("data read")
-
+    print("Runtime: {}".format(datetime.now()-start_time))
     # read top frequency data
     df_top = pd.read_csv("../data/df_freq_l.csv")
-    df_top = df_top[:100]
-    
-    # res = df_top.apply(get_trend_coefs, 1, ref_data=df_ts)
-    res = df_top.progress_apply(func=get_trend_coefs, axis=1, ref_data=df_ts)
-    df_stats = pd.DataFrame(list(res))
-    df_res = pd.merge(df_top, df_stats, left_index=True, right_index=True)
+    # df_top = df_top[:10000]
+    # df_top = df_top[df_top['ts_name'].str.contains('H')]
+
+
+    # split dataframe for multi processing
+    df_l = split_df(df_top)
+    print("df_l has {} elements".format(len(df_l)))
+    print("splitting dataframe for multi processing completed")
+
+    print("starting multiprocessing")
+    res_l = []
+    with Pool(processes=no_prc,
+              initializer=set_global_df,
+              initargs=(df_ts,)) as pool:
+        for res in tqdm(pool.imap_unordered(get_stats_mp, df_l),
+                        total=len(df_l)):
+            res_l.append(res)
+
+    print("Multiprocessing completed, runtime: {}".format(datetime.now()-start_time))
+    df_res = pd.concat(res_l)
+    print("Results concatenated, runtime: {}".format(datetime.now()-start_time))
+          
     
     df_res.to_csv("../data/df_stats.csv", index=False)
 
-    print(df_res.head())
-    print("\nstatistics and trend fit created")
+    print("\nstatistics and trend fit created, all done!, total runtime: {}".format(datetime.now()-start_time))
 
     
 if __name__ == "__main__":
