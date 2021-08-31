@@ -195,15 +195,15 @@ def main():
     # loading m4 competition data
 
     hourly_fp = "../m4_data/hourly-train.csv"
-    # daily_fp = "../m4_data/Daily-train.csv"
-    # weekly_fp = "../m4_data/Weekly-train.csv"
-    # monthly_fp = "../m4_data/Monthly-train.csv"
-    # quarterly_fp = "../m4_data/Quarterly-train.csv"
+    daily_fp = "../m4_data/Daily-train.csv"
+    weekly_fp = "../m4_data/Weekly-train.csv"
+    monthly_fp = "../m4_data/Monthly-train.csv"
+    quarterly_fp = "../m4_data/Quarterly-train.csv"
     yearly_fp = "../m4_data/Yearly-train.csv"
                         
-    # m4_l = [hourly_fp, daily_fp, weekly_fp,
-    #     monthly_fp, quarterly_fp, yearly_fp]
-    m4_l = [hourly_fp, yearly_fp]
+    m4_l = [hourly_fp, daily_fp, weekly_fp,
+        monthly_fp, quarterly_fp, yearly_fp]
+    # m4_l = [hourly_fp, yearly_fp]
 
     no_prc = cpu_count()-1
 
@@ -219,7 +219,7 @@ def main():
 
     print("concatenating dfs")
     df = pd.concat(df_l)
-    df = df.sample(10000)
+    # df = df.sample(10000)
     df_l = None
 
     df_l = split_df(df)

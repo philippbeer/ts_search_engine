@@ -61,21 +61,19 @@ def compare_frequencies(data: Tuple[str,Set[int]]) -> pd.DataFrame:
     
 def main():
     no_prc = cpu_count()-1
+    print("starting computation of top 5 frequencies per ts")
     df = pd.read_csv("../data/df_apx_win.csv")
-    # df = df[['ts_name', 'freq_approx_idx']]
-
-    # rand_ts_name = random.sample(df['ts_name'].tolist(), 20)
-    # df = df[df['ts_name'].isin(rand_ts_name)]
-    # df = df.groupby('ts_name').apply(lambda x: x.sample(min(len(x.shape[0], 25))))
     print("df read with shape: {}".format(df.shape))
 
     ts_l = []
     df_res = pd.DataFrame(columns=['ts_name', 'freq_ids'])
-    for ts in tqdm(df.groupby("ts_name")):
+    for ts in tqdm(df.groupby(["type", "ts_name"])):
+        print()
         # ts_l.append(ts)
 
         N = 5
-        ts_name = ts[0]
+        ts_type = ts[0][0]
+        ts_name = ts[0][1]
         df_sub = ts[1]
 
     
@@ -92,6 +90,7 @@ def main():
         freq_idx = [freq_l[i] for i in idx_powerful_PSD]
     
         df_res = df_res.append(pd.DataFrame({'ts_name': ts_name,
+                                             'type': ts_type,
                                              'freq_ids': str(freq_idx)},
                                             index=[0]))
  
@@ -100,5 +99,5 @@ def main():
     df_res.to_csv("../data/df_freq_l.csv", index=False)
 
 
-if __name__ == "__main__":
+
     main()

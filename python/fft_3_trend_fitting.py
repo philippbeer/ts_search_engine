@@ -1,5 +1,6 @@
 from collections import namedtuple
 from datetime import datetime
+import math
 from multiprocessing import cpu_count, Pool
 from typing import Tuple
 
@@ -37,7 +38,8 @@ def read_data() -> None:
 def get_trend(ts_ar: np.ndarray,
               periodicity: int) -> np.ndarray:
     if ts_ar.shape[0] < 2*periodicity:
-        raise Exception("ts_ar shape is: {}\nperiodicity is: {}".format(ts_ar.shape[0], periodicity))
+        periodicity = math.floor(ts_ar.shape[0]/2)
+        # raise Exception("ts_ar shape is: {}\nperiodicity is: {}".format(ts_ar.shape[0], periodicity))
     res = seasonal_decompose(ts_ar, 'additive', period=periodicity)
     # print("seas. decomp.: {}".format(res.trend))
     return res.trend[~np.isnan(res.trend)]
@@ -93,7 +95,7 @@ def main():
 
     # read top frequency data
     df_top = pd.read_csv("../data/df_freq_l.csv")
-    # df_top = df_top[:100]
+    df_top = df_top[:100]
     
     # res = df_top.apply(get_trend_coefs, 1, ref_data=df_ts)
     res = df_top.progress_apply(func=get_trend_coefs, axis=1, ref_data=df_ts)

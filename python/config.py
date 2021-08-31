@@ -14,12 +14,14 @@ M4_FP_L = [HOURLY_FP,
            YEARLY_FP]
 M4_FP_L_TEST = [HOURLY_FP, WEEKLY_FP]
 
+TS_STATS_FP = "../data/df_stats.csv"
 
 # Period Mapping
 PERIOD_MAPPING = {
     'H': 24,
     'D': 7,
     'W': 52,
+    'M': 12,
     'Q': 4,
     'Y': 1
 }
