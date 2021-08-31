@@ -1,3 +1,7 @@
+"""
+This program finds the closest series based on the defined criteria. This matches the series and finds the closest
+"""
+
 from multiprocessing import Pool
 from os import cpu_count
 

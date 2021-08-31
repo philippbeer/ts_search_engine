@@ -1,12 +1,12 @@
 from datetime import datetime
 from multiprocessing import Pool, cpu_count
-import os
-from typing import Tuple, Dict, List
+from typing import Tuple, List
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import signal
+from statsmodels.tsa.seasonal import seasonal_decompose
 from tqdm import tqdm
 
 def read_csv(data: str)-> pd.DataFrame:
@@ -43,8 +43,6 @@ def separate_ts(df: pd.DataFrame) -> List[Tuple[str, np.ndarray]]:
         ts_l.append((ts_name, ar))
     return ts_l
     
-
-
     
 # plotting of power spectrum for each
 def plot_psd(data: Tuple[str,pd.DataFrame]) -> str:
@@ -66,65 +64,108 @@ def plot_psd(data: Tuple[str,pd.DataFrame]) -> str:
     plt.savefig(data[0]+"_psd.png")
     return data[0]
 
+def full_fft(ts_name:str,
+             ar: np.ndarray,
+             dt: float) -> pd.DataFrame:
+    # full FFT
+    n = ar.shape[0]
+    transform_name = 'fft'
+    fhat = np.abs(np.fft.fft(ar))   # compute FFT
+    PSD = fhat * np.conj(fhat) / n  # power spectrum
+    fft_freqs = (1/(dt*n)) * np.arange(n) # create x-axis for frequencies
+    fft_freq_appx_idx = np.digitize(fft_freqs,freq_ranges)
+
+    # create FFT dataframe
+    df = create_df_apx(ts_name,
+                       fft_freqs,
+                       transform_name,
+                       fhat,
+                       PSD,
+                       fft_freq_appx_idx)
+    return df
+
+def hamming_fft(ts_name: str,
+                ar: np.ndarray,
+                dt: float) -> pd.DataFrame:
+    # FFT with Hamming Window
+    n = ar.shape[0]
+    transform_name = 'Hamming'
+    ar_hamming = ar * np.hamming(n)
+    fhat_hamming = np.abs(np.fft.fft(ar_hamming))
+    PSD_hamming = fhat_hamming * np.conj(fhat_hamming)
+    hamming_freqs = (1/(dt*n)) * np.arange(n)
+    hamming_freq_appx_idx = np.digitize(hamming_freqs,freq_ranges)
+
+    # create hamming window df
+    df = create_df_apx(ts_name,
+                       hamming_freqs,
+                       transform_name,
+                       fhat_hamming,
+                       PSD_hamming,
+                       hamming_freq_appx_idx)
+
+    return df
+
+def welch_fft(ts_name: str,
+              ar: np.ndarray,
+              dt: float):
+    # FFT with Welch method
+    n = ar.shape[0]
+    transform_name = 'Welch'
+    seg_length = np.floor(1/20*n)
+    if seg_length == 0:
+        # set minimum window for periods to short for 5% threshold
+        seg_length = 10
+    welch_freqs, PSD_welch = signal.welch(ar, nperseg=seg_length,
+                                                     window='hamming')
+    welch_freq_apx_idx = np.digitize(welch_freqs, freq_ranges)
+
+    # create Welch window dataframe
+    df = create_df_apx(ts_name,
+                       welch_freqs,
+                       transform_name,
+                       fhat=np.array([np.nan]*welch_freqs.shape[0]),
+                       PSD=PSD_welch,
+                       freq_apx_idx=welch_freq_apx_idx,
+                       )
+    return df
+                       
+    
+
+def create_df_apx(ts_name: str,
+                  freqs: np.ndarray,
+                  transform_name: str,
+                  fhat: np.ndarray,
+                  PSD: np.ndarray,
+                  freq_apx_idx: np.ndarray
+                  ) -> pd.DataFrame:
+    
+    df = pd.DataFrame({
+        'ts_name': [ts_name]*freqs.shape[0],
+        'type': [transform_name]*freqs.shape[0],
+        'fhat': fhat,
+        'PSD': PSD,
+        'freq': freqs,
+        'freq_apx_idx': freq_apx_idx,
+        'freq_apx': freq_ranges[freq_apx_idx]
+    })
+    return df
+
 def compute_fr_ranges(ts_t: Tuple[str,np.array]) -> pd.DataFrame:
     dt = 0.001
     ts_name = ts_t[0]
     ar = ts_t[1]
-    n = ar.shape[0]
 
+    
     # full FFT
-    fhat = np.abs(np.fft.fft(ar))   # compute FFT
-    PSD = fhat * np.conj(fhat) / n  # power spectrum
-    fft_freq = (1/(dt*n)) * np.arange(n) # create x-axis for frequencies
-    fft_freq_approx_idx = np.digitize(fft_freq,freq_ranges)
-
+    df_fft = full_fft(ts_name, ar, dt)
     # Hamming window (global)
-    ar_hamming = ar * np.hamming(n)
-    fhat_hamming = np.abs(np.fft.fft(ar_hamming))
-    PSD_hamming = fhat_hamming * np.conj(fhat_hamming)
-    hamming_freq = (1/(dt*n)) * np.arange(n)
-    hamming_freq_approx_idx = np.digitize(hamming_freq,freq_ranges)
-    
+    df_hamming = hamming_fft(ts_name, ar, dt)
     # Welch's method (hamming window)
-    seg_length = np.floor(1/20*n)
-    if seg_length == 0:
-        # print("length of {} is {}".format(ts_name,
-        #                                   ar.shape))
-        seg_length = 10
-    welch_freq, PSD_welch = signal.welch(ar, nperseg=seg_length,
-                                                     window='hamming')
-    welch_freq_apx_idx = np.digitize(welch_freq, freq_ranges)
+    df_welch = welch_fft(ts_name, ar, dt)
 
-    
-    # create df_approx for comparison
-    # full FFT
-    df_res = pd.DataFrame({'ts_name': [ts_name]*len(fft_freq),
-                           'type': ['fft']*len(fft_freq),
-                           'fhat': fhat,
-                           'PSD': PSD,
-                           'freq': fft_freq,
-                           'freq_apx_idx': fft_freq_approx_idx,
-                           'freq_apx': freq_ranges[fft_freq_approx_idx]})
-
-    df_res = df_res.append(pd.DataFrame({
-        'ts_name': [ts_name] * len(hamming_freq),
-        'type': 'Hamming',
-        'fhat': fhat_hamming,
-        'PSD': PSD_hamming,
-        'freq': hamming_freq,
-        'freq_apx_idx': hamming_freq_approx_idx,
-        'freq_apx': freq_ranges[hamming_freq_approx_idx]
-    }))
-    
-    # Welch's method
-    df_res = df_res.append(pd.DataFrame({
-        'ts_name': [ts_name]*len(welch_freq),
-        'type': 'Welch',
-        'PSD': PSD_welch,
-        'freq': welch_freq,
-        'freq_apx_idx': welch_freq_apx_idx,
-        'freq_apx': freq_ranges[welch_freq_apx_idx]}))
-
+    # combine results
+    df_res = pd.concat([df_fft, df_hamming, df_welch])
     
     # zero frequencies need to stay 0
     df_res.loc[df_res['freq']==0, 'freq_apx'] = 0
@@ -153,16 +194,16 @@ def main():
     start_time = datetime.now()
     # loading m4 competition data
 
-    hourly_fp = "m4_data/hourly-train.csv"
-    daily_fp = "m4_data/Daily-train.csv"
-    weekly_fp = "m4_data/Weekly-train.csv"
-    monthly_fp = "m4_data/Monthly-train.csv"
-    quarterly_fp = "m4_data/Quarterly-train.csv"
-    yearly_fp = "m4_data/Yearly-train.csv"
+    hourly_fp = "../m4_data/hourly-train.csv"
+    # daily_fp = "../m4_data/Daily-train.csv"
+    # weekly_fp = "../m4_data/Weekly-train.csv"
+    # monthly_fp = "../m4_data/Monthly-train.csv"
+    # quarterly_fp = "../m4_data/Quarterly-train.csv"
+    yearly_fp = "../m4_data/Yearly-train.csv"
                         
-    m4_l = [hourly_fp, daily_fp, weekly_fp,
-        monthly_fp, quarterly_fp, yearly_fp]
-
+    # m4_l = [hourly_fp, daily_fp, weekly_fp,
+    #     monthly_fp, quarterly_fp, yearly_fp]
+    m4_l = [hourly_fp, yearly_fp]
 
     no_prc = cpu_count()-1
 
@@ -178,7 +219,7 @@ def main():
 
     print("concatenating dfs")
     df = pd.concat(df_l)
-    # df = df.sample(10000)
+    df = df.sample(10000)
     df_l = None
 
     df_l = split_df(df)
@@ -215,7 +256,7 @@ def main():
 
     df_approx = pd.concat(approx_l)
 
-    df_approx.to_csv("df_approx_windows.csv", index=False)
+    df_approx.to_csv("../data/df_apx_win.csv", index=False)
 
     print("computation completed after: {}".format(datetime.now()-start_time))
 
