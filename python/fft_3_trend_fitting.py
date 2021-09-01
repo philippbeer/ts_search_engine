@@ -88,7 +88,7 @@ def get_trend_coefs(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
 
 
 def split_df(df: pd.DataFrame,
-             no_items: int = 7) -> List[pd.DataFrame]:
+             no_items: int = 50) -> List[pd.DataFrame]:
     l = df.shape[0]
     start = 0
     stop = increment = int(np.floor(l/no_items))
@@ -142,7 +142,8 @@ def main():
     with Pool(processes=no_prc,
               initializer=set_global_df,
               initargs=(df_ts,)) as pool:
-        for res in tqdm(pool.imap_unordered(get_stats_mp, df_l),
+        for res in tqdm(pool.imap_unordered(get_stats_mp, df_l,
+                                            chunksize=10),
                         total=len(df_l)):
             res_l.append(res)
 
