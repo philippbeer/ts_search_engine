@@ -26,5 +26,10 @@ PERIOD_MAPPING = {
     'Y': 1
 }
 
+# Window types
+FFT = 'fft'
+HAM = 'Hamming'
+WELCH = 'Welch'
+
 # Threshold
 MEAN_THRESH =2.5
