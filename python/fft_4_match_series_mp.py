@@ -12,91 +12,6 @@ from tqdm import tqdm
 
 import config
 
-def compute_match(ts_stats_ar: np.ndarray) -> pd.DataFrame:
-    ts_1 = []
-    ts_2 = []
-    fft_type = []
-    delta_m = []
-    delta_mean = []
-    delta_q25 = []
-    delta_median = []
-    delta_q75 = []
-    delta_std = []
-    delta_count = []
-    scores = []
-
-    # assign array values to corresponding variables
-    ts_name = ts_stats_ar[0]
-    freq_ids = ts_stats_ar[1]
-    ts_type = ts_stats_ar[2]
-    m = ts_stats_ar[3]
-    # b = ts_stats_ar[4]
-    count = ts_stats_ar[5]
-    mean = ts_stats_ar[6]
-    std = ts_stats_ar[7]
-    # min = ts_stats_ar[8]
-    q25 = ts_stats_ar[9]
-    q50 = ts_stats_ar[10]
-    q75 = ts_stats_ar[11]
-    # max = ts_stats_ar[12]
-
-    # reduce all dataframes to ones that match the trend direction
-    # only compare ts created by same type of transformation
-    if m>0:
-        df_sub = df_g[(df_g['m']>0)\
-                      & (df_g['type']==ts_type)\
-                      & ((df_g['mean']<=config.MEAN_THRESH*mean)\
-                         & (df_g['mean']>=(mean-config.MEAN_THRESH*mean)))]
-    elif m==0:
-        raise Exception("handle special case of exact stationarity")
-    else:
-        df_sub = df_g[(df_g['m']<0)\
-                      & (df_g['type']==ts_type)\
-                      & ((df_g['mean']<=config.MEAN_THRESH*mean)\
-                         & (df_g['mean']>=mean-config.MEAN_THRESH*mean))]
-
-
-    for k, r in df_sub.iterrows():
-        if r['ts_name']==ts_name:
-            continue
-        else:
-            l_tmp = [10**i if freq_ids[i]==r['freq_ids'][i]\
-                 else 0 for i in range(len(r['freq_ids']))]
-
-            match = sum(l_tmp)
-            ts_1.append(ts_name)
-            ts_2.append(r['ts_name'])
-            fft_type.append(ts_type)
-            delta_m.append(abs(r['m']-m))
-            delta_mean.append(abs(r['mean']-mean))
-            delta_q25.append(abs(r['q25']-q25))
-            delta_median.append(abs(r['q50']-q50))
-            delta_q75.append(abs(r['q75']-q75))
-            delta_std.append(abs(r['std']-std))
-            delta_count.append(abs(r['count']-count))
-            scores.append(match)
-    
-    
-    df_res = pd.DataFrame({'ts_1': ts_1,
-                           'ts_2': ts_2,
-                           'type': fft_type,
-                           'match_score': scores,
-                           'd_m': delta_m,
-                           'd_mean': delta_mean,
-                           'd_q25': delta_q25,
-                           'd_q50': delta_median,
-                           'd_q75': delta_q75,
-                           'd_std': delta_std,
-                           'd_count': delta_count})
-    sort_cols = ['match_score', 'd_m', 'd_mean', 'd_std', 'd_count',\
-                 'd_q50', 'd_q75', 'd_q25']
-    sort_order = [False,True,True,True,True,\
-                  True,True,True]
-    df_res.sort_values(sort_cols, ascending=sort_order,
-                       inplace=True)
-    df_res.reset_index(inplace=True)
-    return df_res
-
 def set_df(df: pd.DataFrame):
     global df_g_fft
     global df_g_ham
@@ -163,18 +78,6 @@ def generate_stats(stats_ar: np.ndarray) -> pd.DataFrame:
     q75 = stats_ar[11]
     # max = ts_stats_ar[12]
     
-    # ts_1 = s['ts_name']
-    # freq_l = s['freq_ids']
-    # fft_type = s['type']
-    # mean = s['mean']
-    # m = s['m']
-    # count = s['count']
-    # std = s['std']
-    # q25 = s['q25']
-    # q50 = s['q50']
-    # q75 = s['q75']
-    
-
     df_sub = get_global_df(fft_type)
     # remove unnecessary candidates from df_g
     if m>0:
@@ -224,19 +127,9 @@ def main():
     # add missing frequencies place holders in case they exist
     df['freq_ids'] = df['freq_ids'].apply(extend_missing_freqs)
 
-    # set_df(df) # set global variables
-
-    # tqdm.pandas()
-    # print("starting apply")
-    # res  = df.progress_apply(func=generate_stats, axis=1)
-    # df_res = pd.concat(list(res))
-
-    # # ensuring order of columns
-    # df_analyze = df[(df['ts_name'].str.contains('H') |\
-    #                  (df['ts_name'].str.contains('D')))]
     df = df[['ts_name',	'freq_ids', 'type', 'm', 'b', 'count', 'mean', 'std'\
              , 'min', 'q25', 'q50', 'q75', 'max']]
-    df_analyze = df.sample(1000)
+    df_analyze = df.sample(100000)
     # # generating list to be processed via multiprocessing
     ts_l = list(df_analyze.values)
     
@@ -248,13 +141,12 @@ def main():
         for res in tqdm(pool.imap_unordered(generate_stats,ts_l,
                                             chunksize=50),
                         total=len(ts_l)):
-            # df_tmp = pd.concat(list(res))
             res_l.append(res)
 
     df_res = pd.concat(res_l)
 
 
-    df_res.to_csv("../data/df_match_ts_1000.csv", index=False)
+    df_res.to_csv("../data/df_match_ts_100000.csv", index=False)
     print("data written to file")
     print("completed in {}".format(datetime.now()-start_time))
 
