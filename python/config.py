@@ -25,3 +25,6 @@ PERIOD_MAPPING = {
     'Q': 4,
     'Y': 1
 }
+
+# Threshold
+MEAN_THRESH =2.5

@@ -9,21 +9,21 @@ from tqdm import tqdm
 
 # loading results
 
-def write_f_to_cols(data: Tuple[str,pd.DataFrame]) -> pd.DataFrame:
-    N = 5
-    ts_name = data[0]
-    df = data[1]
+# def write_f_to_cols(data: Tuple[str,pd.DataFrame]) -> pd.DataFrame:
+#     N = 5
+#     ts_name = data[0]
+#     df = data[1]
 
     
-    df['freq_approx_idx'] = df['freq_approx_idx'].astype(int)
+#     df['freq_approx_idx'] = df['freq_approx_idx'].astype(int)
 
-    freq_l = df['freq_approx_idx'].tolist()
+#     freq_l = df['freq_approx_idx'].tolist()
 
-    idx_largest_freq = sorted(range(len(freq_l)), key= lambda x: freq_l[x])[-N:]
+#     idx_largest_freq = sorted(range(len(freq_l)), key= lambda x: freq_l[x])[-N:]
 
-    df_res = pd.DataFrame({'ts_name': ts_name,
-                           'freq_ids': freq_l})
-    return df_res
+#     df_res = pd.DataFrame({'ts_name': ts_name,
+#                            'freq_ids': freq_l})
+#     return df_res
 
 def compare_frequencies(data: Tuple[str,Set[int]]) -> pd.DataFrame:
     ts_name = data[0]
@@ -82,6 +82,7 @@ def main():
         freq_l = df_sub['freq_apx_idx'].tolist()
         PSD_l = df_sub['PSD'].tolist()
 
+        # returns largest index positions sorted from smallest to biggest
         idx_powerful_PSD = sorted(range(len(PSD_l)), key= lambda
                                   x: PSD_l[x])[-N:]
 
@@ -99,5 +100,5 @@ def main():
     df_res.to_csv("../data/df_freq_l.csv", index=False)
 
 
-
+if __name__=="__main__":
     main()
