@@ -113,6 +113,9 @@ def generate_stats(stats_ar: np.ndarray) -> pd.DataFrame:
 
     # drop where time series match
     df_res = df_res[~(df_res['ts_1']==df_res['ts_2'])]
+
+    # drop frequency matches below 10^4
+    df_res = df_res[df_res['match_score']>10**4+10**3]
     return df_res
     
     
@@ -127,9 +130,13 @@ def main():
     # add missing frequencies place holders in case they exist
     df['freq_ids'] = df['freq_ids'].apply(extend_missing_freqs)
 
+    df['granularity'] = df['ts_name'].astype(str).str[0]
     df = df[['ts_name',	'freq_ids', 'type', 'm', 'b', 'count', 'mean', 'std'\
-             , 'min', 'q25', 'q50', 'q75', 'max']]
-    df_analyze = df.sample(100000)
+             , 'min', 'q25', 'q50', 'q75', 'max','granularity']]
+
+    sample_l = df.groupby('granularity')['ts_name'].apply(lambda x: x.sample(min(len(x), 500))).to_list()
+    df_analyze = df[df['ts_name'].isin(sample_l)]
+    # df_analyze = df.groupby(['type', 'granularity'], group_keys=False).apply(lambda x: x.sample(min(len(x), 1000)))
     # # generating list to be processed via multiprocessing
     ts_l = list(df_analyze.values)
     
@@ -146,7 +153,7 @@ def main():
     df_res = pd.concat(res_l)
 
 
-    df_res.to_csv("../data/df_match_ts_100000.csv", index=False)
+    df_res.to_csv("../data/df_match_ts_match_lg_11000.csv", index=False)
     print("data written to file")
     print("completed in {}".format(datetime.now()-start_time))
 
