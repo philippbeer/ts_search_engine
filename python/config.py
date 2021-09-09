@@ -16,6 +16,15 @@ M4_FP_L_TEST = [HOURLY_FP, WEEKLY_FP]
 
 TS_STATS_FP = "../data/df_stats.csv"
 
+# UCR Folder
+UCR_FP = "../data/ucr_data/UCRArchive_2018/"
+
+UCR_NAME = "_TRAIN.tsv"
+
+UCR_FFT_APX_FP = "../data/df_ucr_apx_win.csv"
+UCR_FREQ_L_FP = "../data/df_ucr_freq_l.csv"
+UCR_STATS_FP = "../data/df_ucr_stats.csv"
+
 # Period Mapping
 PERIOD_MAPPING = {
     'H': 24,
@@ -33,3 +42,6 @@ WELCH = 'Welch'
 
 # Threshold
 MEAN_THRESH =2.5
+
+# FFT config
+NO_TOP_FREQ = 5

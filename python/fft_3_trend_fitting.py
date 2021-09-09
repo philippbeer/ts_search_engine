@@ -50,6 +50,21 @@ def fit_trend(trend_ar: np.ndarray) -> Tuple[float,float]:
     b = fit_res[1]
     return (m,b)
 
+def get_trend(ts_ar: np.ndarray,
+              periodicity: int) -> np.ndarray:
+    if ts_ar.shape[0] < 2*periodicity:
+        periodicity = math.floor(ts_ar.shape[0]/2)
+        # raise Exception("ts_ar shape is: {}\nperiodicity is: {}".format(ts_ar.shape[0], periodicity))
+    res = seasonal_decompose(ts_ar, 'additive', period=periodicity)
+    # print("seas. decomp.: {}".format(res.trend))
+    return res.trend[~np.isnan(res.trend)]
+
+def fit_trend(trend_ar: np.ndarray) -> Tuple[float,float]:
+    fit_res = np.polyfit(np.arange(trend_ar.shape[0]), trend_ar, 1)
+    m = fit_res[0]
+    b = fit_res[1]
+    return (m,b)
+
 def get_trend_coefs(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
     ts_name = df['ts_name']
     ts_type = ts_name[0]
@@ -117,7 +132,8 @@ def get_stats_mp(df: pd.DataFrame) -> pd.DataFrame:
     df_res = pd.merge(df, df_stats, left_index=True,
                       right_index=True)
     return df_res
-    
+
+
 def main():
     start_time = datetime.now()
     no_prc = cpu_count()-1
