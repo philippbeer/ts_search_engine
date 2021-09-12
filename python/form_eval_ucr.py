@@ -1,3 +1,4 @@
+import argparse
 from datetime import datetime
 import math
 from multiprocessing import Pool, cpu_count
@@ -16,10 +17,15 @@ from tqdm import tqdm
 import config as cnf
 
 def read_filepaths(filepath: str=cnf.UCR_FP)-> List[Tuple[str,str]]:
+    
+    if get_run_mode() == "train":
+        suffix = cnf.UCR_TRAIN_NAME
+    else:
+        suffix = cnf.UCR_TEST_NAME
     ts_infos = []
     for root, dirs, files in os.walk(filepath):
         for name in files:
-            if (name.endswith(cnf.UCR_NAME)):
+            if (name.endswith(suffix)):
                 path_tmp = os.path.join(root,name)
                 ts_name = re.split("/", root)[-1]
                 ts_infos.append((ts_name,path_tmp))
@@ -244,11 +250,12 @@ def transform_raw_ts(start_time: datetime.date,
     """
     transform raw series into fourier space and retain name and classification
     """
-    fp_df_fft_apx = Path(cnf.UCR_FFT_APX_FP)
+    tnf_csv_fp = cnf.UCR_FFT_APX_FP + "_" + get_run_mode() + ".csv"
+    tnf_csv_path = Path(tnf_csv_fp)
 
-    if fp_df_fft_apx.is_file():
+    if tnf_csv_path.is_file():
         print("reading file from storage")
-        df_approx = pd.read_csv(cnf.UCR_FFT_APX_FP)
+        df_approx = pd.read_csv(tnf_csv_fp)
         file_read_time = datetime.now()-start_time
         print("file read in {}".format(file_read_time))
         return df_approx
@@ -276,11 +283,17 @@ def transform_raw_ts(start_time: datetime.date,
         cols = cols[:1]+cols[-2:]+cols[1:-2]
 
         # write to file:
-        df_approx.to_csv(cnf.UCR_FFT_APX_FP, index=False)
+        df_approx.to_csv(tnf_csv_fp, index=False)
         print("Frequencies approximation file written after: {}".format(datetime.now()-start_time))
         
         return df_approx
 
+def set_run_mode(rm: str):
+    global run_mode
+    run_mode = rm
+
+def get_run_mode() -> str:
+    return run_mode
 
 def reduce_to_top_frequencies(start_time: datetime.date,
                               df: pd.DataFrame,
@@ -290,10 +303,13 @@ def reduce_to_top_frequencies(start_time: datetime.date,
     """
     function_time = datetime.now()
     N = cnf.NO_TOP_FREQ
-    freq_l_file = Path(cnf.UCR_FREQ_L_FP)
-    if freq_l_file.is_file():
+
+    freq_l_fp = cnf.UCR_FREQ_L_FP + "_" + get_run_mode() + ".csv"
+    freq_l_path = Path(freq_l_fp)
+    
+    if freq_l_path.is_file():
         print("reading csv with top frequencies for all time series")
-        df_res = pd.read_csv(cnf.UCR_FREQ_L_FP)
+        df_res = pd.read_csv(freq_l_fp)
 
         csv_read = datetime.now()-function_time
         print("Frequencies read after {}".format(csv_read))
@@ -335,7 +351,7 @@ def reduce_to_top_frequencies(start_time: datetime.date,
 
 
         df_res.reset_index(inplace=False)
-        df_res.to_csv(cnf.UCR_FREQ_L_FP, index=False)
+        df_res.to_csv(freq_l_fp, index=False)
         print("frequencies written to file in {}".format(datetime.now()-function_time))
         print("Total elapsed time: {}".format(datetime.now()-start_time))
 
@@ -350,11 +366,12 @@ def compute_ts_stats(start_time: datetime.date,
     """
     function_time = datetime.now()
 
-    ts_stats_fp = Path(cnf.UCR_STATS_FP)
+    ts_stats_fp = cnf.UCR_STATS_FP + "_" + get_run_mode() + ".csv"
+    ts_stats_path = Path(ts_stats_fp)
 
-    if ts_stats_fp.is_file():
+    if ts_stats_path.is_file():
         print("reading time series stats from file")
-        df = pd.read_csv(cnf.UCR_STATS_FP)
+        df = pd.read_csv(tnf_stats_fp)
         
         csv_read = datetime.now()-function_time
         print("time series stats read in {}".format(csv_read))
@@ -381,7 +398,7 @@ def compute_ts_stats(start_time: datetime.date,
         print("Result dataframe created, runtime: {}".format(datetime.now()-function_time))
 
 
-        df_res.to_csv(cnf.UCR_STATS_FP, index=False)
+        df_res.to_csv(ts_stats_fp, index=False)
 
         stats_created_time = datetime.now()-function_time
         print("statistics and trend fit created in: {}".format(stats_created_time))
@@ -418,8 +435,26 @@ def read_raw_ts(start_time: datetime.date,
 
     return time_series
 
+def run_test_mode() -> bool:
+    """
+    retrieve program arguments
+    """
+    parser = argparse.ArgumentParser(description="Determine whether to run on train or test test")
+    parser.add_argument("--test", dest="run_test", action='store_true', default=False,
+                        help="execute on test data set")
+
+    args = parser.parse_args()
+
+    return args.run_test
 
 def main()->None:
+    if run_test_mode():
+        # determine params for test mode
+        set_run_mode("test")
+    else:
+        # determine params for train mode
+        set_run_mode("train")
+
     start_time = datetime.now()
     no_prc = cpu_count()-1
 
