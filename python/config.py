@@ -20,11 +20,14 @@ TS_STATS_FP = "../data/df_stats.csv"
 UCR_FP = "../data/ucr_data/UCRArchive_2018/"
 
 UCR_TRAIN_NAME = "_TRAIN.tsv"
-UCR_TEST_NANE = "_TEST.tsv"
+UCR_TEST_NAME = "_TEST.tsv"
 
 UCR_FFT_APX_FP = "../data/df_ucr_apx_win"
 UCR_FREQ_L_FP = "../data/df_ucr_freq_l"
 UCR_STATS_FP = "../data/df_ucr_stats"
+
+UCR_TS_STATS_TRAIN_FP = "../data/df_ucr_stats_train.csv"
+UCR_TS_STATS_TEST_FP = "../data/df_ucr_stats_test.csv"
 
 # Period Mapping
 PERIOD_MAPPING = {

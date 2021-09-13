@@ -7,7 +7,6 @@ from pathlib import Path
 import re
 from typing import List, Tuple
 
-
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -113,7 +112,7 @@ def full_fft(ts_name: str,
     # full FFT
     n = ar.shape[0]
     transform_name = 'fft'
-    fhat = np.abs(np.fft.fft(ar)).real   # compute FFT
+    fhat = np.abs(np.fft.fft(ar))   # compute FFT
     PSD = fhat * np.conj(fhat) / n  # power spectrum
     fft_freqs = (1/(dt*n)) * np.arange(n) # create x-axis for frequencies
     fft_freq_appx_idx = np.digitize(fft_freqs,freq_ranges)
@@ -139,7 +138,7 @@ def hamming_fft(ts_name: str,
     n = ar.shape[0]
     transform_name = 'Hamming'
     ar_hamming = ar * np.hamming(n)
-    fhat_hamming = np.abs(np.fft.fft(ar_hamming)).real
+    fhat_hamming = np.abs(np.fft.fft(ar_hamming))
     PSD_hamming = fhat_hamming * np.conj(fhat_hamming)
     hamming_freqs = (1/(dt*n)) * np.arange(n)
     hamming_freq_appx_idx = np.digitize(hamming_freqs,freq_ranges)
@@ -179,7 +178,7 @@ def welch_fft(ts_name: str,
                        welch_freqs,
                        transform_name,
                        fhat=np.array([np.nan]*welch_freqs.shape[0]),
-                       PSD=PSD_welch.real,
+                       PSD=PSD_welch,
                        freq_apx_idx=welch_freq_apx_idx,
                        )
     df['no'] = no
@@ -200,8 +199,8 @@ def create_df_apx(ts_name: str,
     df = pd.DataFrame({
         'ts_name': [ts_name]*freqs.shape[0],
         'type': [transform_name]*freqs.shape[0],
-        'fhat': fhat,
-        'PSD': PSD,
+        'fhat': fhat.real,
+        'PSD': PSD.real,
         'freq': freqs,
         'freq_apx_idx': freq_apx_idx,
         'freq_apx': freq_ranges[freq_apx_idx]
@@ -335,8 +334,12 @@ def reduce_to_top_frequencies(start_time: datetime.date,
             PSD_l = df_sub['PSD'].tolist()
 
             # returns largest index positions sorted from smallest to biggest
-            idx_powerful_PSD = sorted(range(len(PSD_l)), key= lambda
+            try:
+                idx_powerful_PSD = sorted(range(len(PSD_l)), key= lambda
                                       x: PSD_l[x])[-N:]
+            except TypeError:
+                print("ts_type: {}\nts_name: {}\nno: {}\ncls_type: {}"\
+                      .format(ts_type,ts_name,no,cls_type))
 
 
             # get the largest values by their index into the list
@@ -371,7 +374,7 @@ def compute_ts_stats(start_time: datetime.date,
 
     if ts_stats_path.is_file():
         print("reading time series stats from file")
-        df = pd.read_csv(tnf_stats_fp)
+        df = pd.read_csv(ts_stats_fp)
         
         csv_read = datetime.now()-function_time
         print("time series stats read in {}".format(csv_read))
@@ -383,18 +386,22 @@ def compute_ts_stats(start_time: datetime.date,
         df_all = pd.DataFrame(series_l)
         tqdm.pandas()
         # read reference data
-        print("starting multiprocessing")
+        print("starting multiprocessing for statistical KPI")
         res_l = []
-        with Pool(processes=no_prc,
-                  initializer=set_global_df,
-                  initargs=(df_all,)) as pool:
+        with Pool(processes=no_prc) as pool:
             for res in tqdm(pool.imap_unordered(get_stats_mp, time_series,
                                                 chunksize=10),
                             total=len(series_l)):
                 res_l.append(res)
 
         print("Multiprocessing completed, runtime: {}".format(datetime.now()-function_time))
-        df_res = pd.DataFrame(res_l)
+        df_stats = pd.DataFrame(res_l)
+        merge_l = ['ts_name', 'no']
+        df_res = df_top.merge(df_stats,
+                              left_on=merge_l,
+                              right_on=merge_l,
+                              how='left')
+        
         print("Result dataframe created, runtime: {}".format(datetime.now()-function_time))
 
 
