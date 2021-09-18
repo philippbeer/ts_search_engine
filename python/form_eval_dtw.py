@@ -1,4 +1,5 @@
 import argparse
+from functools import partial
 import time
 import math
 from multiprocessing import Pool, cpu_count
@@ -7,6 +8,7 @@ from pathlib import Path
 import re
 from typing import List, Tuple, Union
 
+from dtw import dtw
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -32,61 +34,26 @@ def read_filepaths(filepath: str=cnf.UCR_FP)-> List[Tuple[str,str]]:
     return ts_infos
 
 def read_ucr_csv(ts_info: Tuple[str, str]) -> pd.DataFrame:
+    """
+    reading filepaths to dataframe and filter if applicable
+    """
     ts_name = ts_info[0]
     fp = ts_info[1]
 
     df = pd.read_csv(fp, sep="\t", header=None)
+
     df['name'] = ts_name
     df['no'] = df.index.values
     cols = df.columns.tolist()
     cols = cols[-2:] + cols[:-2]
     df = df[cols]
+
     return df
+
 
 def set_global_df(df: pd.DataFrame):
     global df_g
     df_g = df
-
-
-def get_trend(ts_ar: np.ndarray,
-              periodicity: int) -> np.ndarray:
-    if ts_ar.shape[0] < 2*periodicity:
-        periodicity = math.floor(ts_ar.shape[0]/2)
-        # raise Exception("ts_ar shape is: {}\nperiodicity is: {}".format(ts_ar.shape[0], periodicity))
-    res = seasonal_decompose(ts_ar, 'additive', period=periodicity)
-    # print("seas. decomp.: {}".format(res.trend))
-    return res.trend[~np.isnan(res.trend)]
-
-def fit_trend(trend_ar: np.ndarray) -> Tuple[float,float]:
-    fit_res = np.polyfit(np.arange(trend_ar.shape[0]), trend_ar, 1)
-    m = fit_res[0]
-    b = fit_res[1]
-    return (m,b)
-
-def get_stats_mp(data_t: Tuple[str,int,int,np.ndarray]) -> pd.DataFrame:
-    ts_name = data_t[0]
-    no = data_t[1]
-    type_cls = data_t[2]
-    ar = data_t[3]
-
-    count = ar.shape[0]
-    mean = np.mean(ar)
-    std = np.std(ar)
-    min_val = np.min(ar)
-    q25 = np.quantile(ar, .25)
-    q50 = np.median(ar)
-    q75 = np.quantile(ar, .75)
-    max_val = np.max(ar)
-
-    period = 12
-    trend_ar = get_trend(ar, period)
-    m, b = fit_trend(trend_ar)
-
-    idx = ['ts_name', 'no', 'class', 'm', 'b', 'count', 'mean', 'std', 'min',
-           'q25', 'q50', 'q75', 'max']
-    res = pd.Series([ts_name, no, type_cls, count, m, b, mean, std, min_val, q25, q50,\
-                    q75, max_val], index=idx)
-    return res
 
 
 def convert_row(s: pd.Series)-> Tuple[str, int, int, np.ndarray]:
@@ -243,11 +210,42 @@ def set_franges(start: int,
                                   stop,
                                   steps)
 
-def dtw(df_l: List[pd.DataFrame]):
-    pass
+def dtw_match(series: Tuple[str, int, int, np.ndarray])->pd.Series:
+    """
+    find the closest time series time series via dtw
+    """
+    df_sub = df_g
+    ts_name = series[0]
+    ts_no = series[1]
+    cls_type = series[2]
+    ts = series[3]
 
+    df_sub['dtw_dist'] = df_g.apply(apply_dtw, 1, args=(ts,))
+    s_match = df_sub.sort_values('dtw_dist').iloc[0,:] # minimum distance
+    s_res = pd.Series({
+        'ts_1': ts_name,
+        'no_1': ts_no,
+        'class_1': cls_type,
+        'ts_2': s_match['name'],
+        'no_2': s_match['no'],
+        'class_2': s_match.iloc[2],
+        'min_dtw_dist': s_match['dtw_dist']
+    })
+    return s_res
     
-def transform_raw_ts(start_time: datetime.date,
+
+def apply_dtw(s_test: pd.Series,
+              ar_tmpl: np.ndarray):
+    """
+    apply dtw to template and test array
+    """
+    ar_test = np.array(s_test.iloc[3:].dropna())
+    aln = dtw(ar_test, ar_tmpl)
+    
+    return aln.distance
+    
+
+def transform_raw_ts(start_time: float,
                      no_prc: int,
                      df_l: List[pd.DataFrame])-> pd.DataFrame:
     """
@@ -259,7 +257,7 @@ def transform_raw_ts(start_time: datetime.date,
     if tnf_csv_path.is_file():
         print("reading file from storage")
         df_approx = pd.read_csv(tnf_csv_fp)
-        file_read_time = datetime.now()-start_time
+        file_read_time = time.time()-start_time
         print("file read in {}".format(file_read_time))
         return df_approx
     else:
@@ -278,7 +276,7 @@ def transform_raw_ts(start_time: datetime.date,
 
                 approx_l.append(res)
 
-        print("FFT computation finished after: {}".format(datetime.now()-start_time))
+        print("FFT computation finished after: {:.2f}".format(time.time()-start_time))
 
         df_approx = pd.concat(approx_l)
         # clean up column order
@@ -287,7 +285,7 @@ def transform_raw_ts(start_time: datetime.date,
 
         # write to file:
         df_approx.to_csv(tnf_csv_fp, index=False)
-        print("Frequencies approximation file written after: {}".format(datetime.now()-start_time))
+        print("Frequencies approximation file written after: {:.2f}".format(time.time()-start_time))
         
         return df_approx
 
@@ -298,13 +296,13 @@ def set_run_mode(rm: str):
 def get_run_mode() -> str:
     return run_mode
 
-def reduce_to_top_frequencies(start_time: datetime.date,
+def reduce_to_top_frequencies(start_time: float,
                               df: pd.DataFrame,
                               n:int = cnf.NO_TOP_FREQ) -> pd.DataFrame:
     """
     reduce frequencies to n most powerful frequencies
     """
-    function_time = datetime.now()
+    function_time = time.time()
     N = cnf.NO_TOP_FREQ
 
     freq_l_fp = cnf.UCR_FREQ_L_FP + "_" + get_run_mode() + ".csv"
@@ -314,13 +312,13 @@ def reduce_to_top_frequencies(start_time: datetime.date,
         print("reading csv with top frequencies for all time series")
         df_res = pd.read_csv(freq_l_fp)
 
-        csv_read = datetime.now()-function_time
-        print("Frequencies read after {}".format(csv_read))
-        print("Total time elapsed: {}".format(datetime.now()-start_time))
+        csv_read = time.time()-function_time
+        print("Frequencies read after {:.2f}".format(csv_read))
+        print("Total time elapsed: {:.2f}".format(time.time()-start_time))
         
         return df_res
     else:
-        print("starting reduction to top {} frequencies".format(N))
+        print("starting reduction to top {:.2f} frequencies".format(N))
 
         ts_l = []
         df_res = pd.DataFrame(columns=['ts_name', 'freq_ids'])
@@ -359,19 +357,19 @@ def reduce_to_top_frequencies(start_time: datetime.date,
 
         df_res.reset_index(inplace=False)
         df_res.to_csv(freq_l_fp, index=False)
-        print("frequencies written to file in {}".format(datetime.now()-function_time))
-        print("Total elapsed time: {}".format(datetime.now()-start_time))
+        print("frequencies written to file in {:.2f}".format(time.time()-function_time))
+        print("Total elapsed time: {:.2f}".format(time.time()-start_time))
 
         return df_res
 
-def compute_ts_stats(start_time: datetime.date,
+def compute_ts_stats(start_time: float,
                      no_prc: int,
                      df_top: pd.DataFrame,
                      time_series: List[pd.DataFrame])-> pd.DataFrame:
     """
     fit the trend of time series decomposition and simple time series statistics
     """
-    function_time = datetime.now()
+    function_time = time.time()
 
     ts_stats_fp = cnf.UCR_STATS_FP + "_" + get_run_mode() + ".csv"
     ts_stats_path = Path(ts_stats_fp)
@@ -380,8 +378,8 @@ def compute_ts_stats(start_time: datetime.date,
         print("reading time series stats from file")
         df = pd.read_csv(ts_stats_fp)
         
-        csv_read = datetime.now()-function_time
-        print("time series stats read in {}".format(csv_read))
+        csv_read = time.time()-function_time
+        print("time series stats read in {:.2f}".format(csv_read))
 
         return df
     else:
@@ -398,7 +396,7 @@ def compute_ts_stats(start_time: datetime.date,
                             total=len(series_l)):
                 res_l.append(res)
 
-        print("Multiprocessing completed, runtime: {}".format(datetime.now()-function_time))
+        print("Multiprocessing completed, runtime: {:.2f}".format(time.time()-function_time))
         df_stats = pd.DataFrame(res_l)
         merge_l = ['ts_name', 'no', 'class']
         df_res = df_top.merge(df_stats,
@@ -406,20 +404,20 @@ def compute_ts_stats(start_time: datetime.date,
                               right_on=merge_l,
                               how='left')
         
-        print("Result dataframe created, runtime: {}".format(datetime.now()-function_time))
+        print("Result dataframe created, runtime: {:.2f}".format(time.time()-function_time))
 
 
         df_res.to_csv(ts_stats_fp, index=False)
 
-        stats_created_time = datetime.now()-function_time
-        print("statistics and trend fit created in: {}".format(stats_created_time))
+        stats_created_time = time.time()-function_time
+        print("statistics and trend fit created in: {:.2f}".format(stats_created_time))
 
         return df_res
 
 
-def read_raw_ts(t1: datetime.date,
+def read_raw_ts(t1: float,
                 no_prc: int,
-                return_type: cnf.RAW_DATA_RETURN_TYPE = "df")\
+                filter: Union[None,List[Tuple]] = None)\
                 ->Union[pd.DataFrame,List[Tuple[str, int,\
                                                 int, np.ndarray]]]:
     """
@@ -429,30 +427,62 @@ def read_raw_ts(t1: datetime.date,
     # read csv files
     print("###### beginning reading raw csv ######")
     df_l = []
+
     with Pool(processes=no_prc) as pool:
         for res in tqdm(pool.imap_unordered(read_ucr_csv, ts_infos),
                         total=len(ts_infos)):
             df_l.append(res)
 
     t2 = time.time()-t1
-    print("###### CSVs read after: {} ######".format(t2))
+    print("###### CSVs read after: {:.2f} ######".format(t2))
 
-    if return_type=="df":
-        return pd.concat(df_l)
+    df = pd.concat(df_l)
+    
+    if filter:
+        df = df[df.set_index(['name', 'no']).index.isin(filter)]
+        return df
     else:
-        
-        print("###### splitting data into list of individual time series ######")
-        time_series = []
-        with Pool(processes=no_prc) as pool:
-            for res in tqdm(pool.imap_unordered(separate_ucr_ts, df_l,
-                                                chunksize=14),
-                            total=len(df_l)):
-                time_series += res
+        return df
 
-        t3 = time.time()-t2
-        print("###### Split of dataframes into list of time series completed in: {} ######".format(t3))
+def split_df(df: pd.DataFrame,
+             pieces: int=7) -> List[pd.DataFrame]:
+    """
+    splitting dataframe into list of dataframes
+    """
+    stop = step = math.floor(df.shape[0]/pieces)
+    start = 0
 
-        return time_series
+    df_l = []
+    while(stop<df.shape[0]):
+        df_tmp = df[start:stop]
+        df_l.append(df_tmp)
+        start = stop
+        stop += step
+
+    # capturing remaining elements
+    df_tmp = df[start:]
+    df_l.append(df_tmp)
+
+    return df_l
+    
+def df_to_list(df: pd.DataFrame)-> List[Tuple[str, int,\
+                                              int, np.ndarray]]:
+    """
+    convert dataframe to list of tuples
+    """
+    no_prc = cpu_count()-1
+    t1 = time.time()
+    print("###### splitting data into list of individual time series ######")
+    df_l = split_df(df, no_prc)
+
+    time_series = []
+    with Pool(processes=no_prc) as pool:
+        for res in tqdm(pool.imap_unordered(separate_ucr_ts, df_l),
+                        total=len(df_l)):
+            time_series += res
+
+    print("###### Split of dataframes into list of time series completed in: {:.2f} ######".format(time.time()-t1)) 
+    return time_series
 
 def run_test_mode() -> bool:
     """
@@ -466,29 +496,55 @@ def run_test_mode() -> bool:
 
     return args.run_test
 
+def get_samples()->List[Tuple]:
+    """
+    reads the samples and creates list of tuples to filter by
+    """
+    t1 = time.time()
+    print('###### Reading FFT matches to capture relevant samples ######')
+    df = pd.read_csv(cnf.UCR_MATCH_RES_FP)
+    df = df[['ts_1', 'no_1']]
+    filter = list(zip(df['ts_1'], df['no_1']))
+    print("###### data read and filter created in {:.2f}s ######".format(time.time()-t1))
+    return filter
+    
+
 def main()->None:
+    set_run_mode("train")
     t1 = time.time()
     no_prc = cpu_count()-1
 
-    ts_train = read_raw_ts(t1, no_prc) 
+    # reading train data
+    df_train = read_raw_ts(t1, no_prc)
+    set_global_df(df_train)
 
+    # reading and filtering test data
     t2 = time.time()
     set_run_mode("test")
-    ts_test = read_raw_ts(t2, no_prc)
+    filt = get_samples()
+    df_test = read_raw_ts(t2, no_prc, filt)
+    ts_test_l = df_to_list(df_test)
 
-    print("ts data type: {}".format(type(time_series)))
-    print(" first 5 rows {}".format(time_series[:5]))
-    # df_apx = transform_raw_ts(start_time,
-    #                           no_prc,
-    #                           time_series)
+    # run dtw comparison
+    res_l = []
 
-    # df_freq_l = reduce_to_top_frequencies(start_time,
-    #                                       df_apx)
+    # df_train = df_train.sample(100)
+    # ts_test_l = ts_test_l[:40]
+    t3 = time.time()
+    print("###### Starting DTW comparison ######")
+    with Pool(processes=no_prc,
+              initializer=set_global_df,
+              initargs=(df_train,)) as pool:
+        for res in tqdm(pool.imap_unordered(dtw_match, ts_test_l),
+                        total=len(ts_test_l)):
+            res_l.append(res)
 
-    # df_stats = compute_ts_stats(start_time, no_prc,
-    #                             df_freq_l, time_series)
+    df_res = pd.DataFrame(res_l)
+    print("###### DTW comparison completed in {:.2f}s ######".format(time.time()-t3))
+    # print("df_res: ", df_res.head())
 
-    print("computation completed after: {}".format(datetime.now()-start_time))
+    df_res.to_csv("../data/df_dtw_comp.csv", index=False)
+    print("computation completed after: {:.2f}".format(time.time()-t1))
 
 
 if __name__ == "__main__":

@@ -60,5 +60,3 @@ NO_TOP_FREQ = 5
 MATCH_SCORE_THRESH = 10**4+10**3
 
 
-# Literals
-RAW_DATA_RETURN_TYPE = Literal["df", "list"]
