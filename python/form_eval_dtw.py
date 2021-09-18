@@ -1,11 +1,11 @@
 import argparse
-from datetime import datetime
+import time
 import math
 from multiprocessing import Pool, cpu_count
 import os
 from pathlib import Path
 import re
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -100,7 +100,7 @@ def convert_row(s: pd.Series)-> Tuple[str, int, int, np.ndarray]:
     ar = np.array(s.iloc[3:].dropna())
     return (name, ts_no, type_cls, ar)
 
-def separate_ucr_ts(df: pd.DataFrame) -> List[Tuple[str, np.ndarray]]:
+def separate_ucr_ts(df: pd.DataFrame) -> List[Tuple[str, int, int, np.ndarray]]:
     ts_l = df.apply(convert_row, axis=1).tolist()
     return ts_l
 
@@ -243,6 +243,10 @@ def set_franges(start: int,
                                   stop,
                                   steps)
 
+def dtw(df_l: List[pd.DataFrame]):
+    pass
+
+    
 def transform_raw_ts(start_time: datetime.date,
                      no_prc: int,
                      df_l: List[pd.DataFrame])-> pd.DataFrame:
@@ -413,34 +417,42 @@ def compute_ts_stats(start_time: datetime.date,
         return df_res
 
 
-def read_raw_ts(start_time: datetime.date,
-                no_prc: int)->pd.DataFrame:
+def read_raw_ts(t1: datetime.date,
+                no_prc: int,
+                return_type: cnf.RAW_DATA_RETURN_TYPE = "df")\
+                ->Union[pd.DataFrame,List[Tuple[str, int,\
+                                                int, np.ndarray]]]:
     """
     reading raw time series
     """
     ts_infos = read_filepaths()
     # read csv files
-    print("starting to read raw csv")
+    print("###### beginning reading raw csv ######")
     df_l = []
     with Pool(processes=no_prc) as pool:
         for res in tqdm(pool.imap_unordered(read_ucr_csv, ts_infos),
                         total=len(ts_infos)):
             df_l.append(res)
 
-    csvs_read = datetime.now()-start_time
-    print("CSVs read after: {}".format(csvs_read))
+    t2 = time.time()-t1
+    print("###### CSVs read after: {} ######".format(t2))
 
-    time_series = []
-    with Pool(processes=no_prc) as pool:
-        for res in tqdm(pool.imap_unordered(separate_ucr_ts, df_l,
-                                            chunksize=14),
-                        total=len(df_l)):
-            time_series += res
+    if return_type=="df":
+        return pd.concat(df_l)
+    else:
+        
+        print("###### splitting data into list of individual time series ######")
+        time_series = []
+        with Pool(processes=no_prc) as pool:
+            for res in tqdm(pool.imap_unordered(separate_ucr_ts, df_l,
+                                                chunksize=14),
+                            total=len(df_l)):
+                time_series += res
 
-    split_complete = datetime.now()-csvs_read
-    print("Split of dataframes into list of time series completed in: {}".format(split_complete))
+        t3 = time.time()-t2
+        print("###### Split of dataframes into list of time series completed in: {} ######".format(t3))
 
-    return time_series
+        return time_series
 
 def run_test_mode() -> bool:
     """
@@ -455,27 +467,26 @@ def run_test_mode() -> bool:
     return args.run_test
 
 def main()->None:
-    if run_test_mode():
-        # determine params for test mode
-        set_run_mode("test")
-    else:
-        # determine params for train mode
-        set_run_mode("train")
-
-    start_time = datetime.now()
+    t1 = time.time()
     no_prc = cpu_count()-1
 
-    time_series = read_raw_ts(start_time, no_prc)
-    
-    df_apx = transform_raw_ts(start_time,
-                              no_prc,
-                              time_series)
+    ts_train = read_raw_ts(t1, no_prc) 
 
-    df_freq_l = reduce_to_top_frequencies(start_time,
-                                          df_apx)
+    t2 = time.time()
+    set_run_mode("test")
+    ts_test = read_raw_ts(t2, no_prc)
 
-    df_stats = compute_ts_stats(start_time, no_prc,
-                                df_freq_l, time_series)
+    print("ts data type: {}".format(type(time_series)))
+    print(" first 5 rows {}".format(time_series[:5]))
+    # df_apx = transform_raw_ts(start_time,
+    #                           no_prc,
+    #                           time_series)
+
+    # df_freq_l = reduce_to_top_frequencies(start_time,
+    #                                       df_apx)
+
+    # df_stats = compute_ts_stats(start_time, no_prc,
+    #                             df_freq_l, time_series)
 
     print("computation completed after: {}".format(datetime.now()-start_time))
 

@@ -1,3 +1,5 @@
+from typing import Literal
+
 # data file paths
 HOURLY_FP = "../m4_data/hourly-train.csv"
 DAILY_FP = "../m4_data/Daily-train.csv"
@@ -29,6 +31,10 @@ UCR_STATS_FP = "../data/df_ucr_stats"
 UCR_TS_STATS_TRAIN_FP = "../data/df_ucr_stats_train.csv"
 UCR_TS_STATS_TEST_FP = "../data/df_ucr_stats_test.csv"
 
+UCR_MATCH_RES_FP = "../data/df_ucr_match_scores_samples.csv"
+UCR_MIN_DELTA_FP = "../data/df_ucr_min_delta.csv"
+UCR_DELTA_KPI = ['d_m', 'd_mean', 'd_std', 'd_q25', 'd_q50', 'd_q75', 'd_min', 'd_max']
+
 # Period Mapping
 PERIOD_MAPPING = {
     'H': 24,
@@ -49,3 +55,10 @@ MEAN_THRESH =2.5
 
 # FFT config
 NO_TOP_FREQ = 5
+
+# Matching criteria frequencies
+MATCH_SCORE_THRESH = 10**4+10**3
+
+
+# Literals
+RAW_DATA_RETURN_TYPE = Literal["df", "list"]
