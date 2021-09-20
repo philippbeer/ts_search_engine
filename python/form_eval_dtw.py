@@ -240,7 +240,8 @@ def apply_dtw(s_test: pd.Series,
     apply dtw to template and test array
     """
     ar_test = np.array(s_test.iloc[3:].dropna())
-    aln = dtw(ar_test, ar_tmpl)
+    aln = dtw(ar_test, ar_tmpl,
+              distance_only=True)
     
     return aln.distance
     
@@ -529,13 +530,34 @@ def main()->None:
     res_l = []
 
     # df_train = df_train.sample(100)
-    # ts_test_l = ts_test_l[:40]
+    series = ts_test_l[0]
+    print(series)
+    df_sub = df_g
+    ts_name = series[0]
+    ts_no = series[1]
+    cls_type = series[2]
+    ts = series[3]
+    # tqdm.pandas()
+    # df_sub['dtw_dist'] = df_g.progress_apply(apply_dtw, axis=1, args=(ts,))
+
+    # print("ts name: {}".format(ts_name))
+    # print("ts no: {}".format(ts_no))
+    # print("class: {}".format(cls_type))
+    # df_sub.sort_values('dtw_dist', inplace=True)
+    # print("head of df_sub:\n{}".format(df_sub))
+
+    
+    # df_g.progress_apply(func=dtw_match(series), axis=1)
+    # ts_test_l = ts_test_l[:7]
+    
     t3 = time.time()
+    ch_size = math.floor(len(ts_test_l)/no_prc)
     print("###### Starting DTW comparison ######")
     with Pool(processes=no_prc,
               initializer=set_global_df,
               initargs=(df_train,)) as pool:
-        for res in tqdm(pool.imap_unordered(dtw_match, ts_test_l),
+        for res in tqdm(pool.imap_unordered(dtw_match, ts_test_l,
+                                            chunksize=ch_size),
                         total=len(ts_test_l)):
             res_l.append(res)
 
