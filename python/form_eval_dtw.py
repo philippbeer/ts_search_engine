@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 from typing import List, Tuple, Union
 
-from dtw import dtw
+from dtw import dtw;
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -53,7 +53,7 @@ def read_ucr_csv(ts_info: Tuple[str, str]) -> pd.DataFrame:
 
 def set_global_df(df: pd.DataFrame):
     global df_g
-    df_g = df
+    df_g = df.transpose()
 
 
 def convert_row(s: pd.Series)-> Tuple[str, int, int, np.ndarray]:
@@ -220,16 +220,25 @@ def dtw_match(series: Tuple[str, int, int, np.ndarray])->pd.Series:
     cls_type = series[2]
     ts = series[3]
 
-    df_sub['dtw_dist'] = df_g.apply(apply_dtw, 1, args=(ts,))
-    s_match = df_sub.sort_values('dtw_dist').iloc[0,:] # minimum distance
+    print("running dtw match for: {} - {}".format(ts_name,ts_no), flush=True)
+    
+    # tqdm.pandas()
+    sub_series = df_sub.apply(apply_dtw, args=(ts,)).reset_index(drop=True)
+    if sub_series.shape[0] != df_sub.shape[1]:
+        print("######## Issues ########")
+        print("ts: {} - {}".format(ts_name, no))
+        print("length sub_series: ", len(sub_series))
+    idx_min = sub_series.idxmin()
+    series_min = df_sub.iloc[:,idx_min]
+
     s_res = pd.Series({
         'ts_1': ts_name,
         'no_1': ts_no,
         'class_1': cls_type,
-        'ts_2': s_match['name'],
-        'no_2': s_match['no'],
-        'class_2': s_match.iloc[2],
-        'min_dtw_dist': s_match['dtw_dist']
+        'ts_2': series_min.loc['name'],
+        'no_2': series_min.loc['no'],
+        'class_2': series_min.loc[0], # this accesses column named 0 / not index 0
+        'min_dtw_dist': sub_series.min()
     })
     return s_res
     
@@ -239,7 +248,7 @@ def apply_dtw(s_test: pd.Series,
     """
     apply dtw to template and test array
     """
-    ar_test = np.array(s_test.iloc[3:].dropna())
+    ar_test = np.array(s_test.iloc[3:].dropna().to_numpy())
     aln = dtw(ar_test, ar_tmpl,
               distance_only=True)
     
@@ -517,6 +526,8 @@ def main()->None:
 
     # reading train data
     df_train = read_raw_ts(t1, no_prc)
+    # df_train = df_train.sample(1000)
+
     set_global_df(df_train)
 
     # reading and filtering test data
@@ -524,40 +535,21 @@ def main()->None:
     set_run_mode("test")
     filt = get_samples()
     df_test = read_raw_ts(t2, no_prc, filt)
+
+    # df_test = df_test.sample(10)
     ts_test_l = df_to_list(df_test)
 
     # run dtw comparison
     res_l = []
 
-    # df_train = df_train.sample(100)
-    series = ts_test_l[0]
-    print(series)
-    df_sub = df_g
-    ts_name = series[0]
-    ts_no = series[1]
-    cls_type = series[2]
-    ts = series[3]
-    # tqdm.pandas()
-    # df_sub['dtw_dist'] = df_g.progress_apply(apply_dtw, axis=1, args=(ts,))
-
-    # print("ts name: {}".format(ts_name))
-    # print("ts no: {}".format(ts_no))
-    # print("class: {}".format(cls_type))
-    # df_sub.sort_values('dtw_dist', inplace=True)
-    # print("head of df_sub:\n{}".format(df_sub))
-
-    
-    # df_g.progress_apply(func=dtw_match(series), axis=1)
-    # ts_test_l = ts_test_l[:7]
-    
     t3 = time.time()
-    ch_size = math.floor(len(ts_test_l)/no_prc)
+    # ch_size = math.floor(len(ts_test_l)/no_prc)
     print("###### Starting DTW comparison ######")
     with Pool(processes=no_prc,
               initializer=set_global_df,
               initargs=(df_train,)) as pool:
-        for res in tqdm(pool.imap_unordered(dtw_match, ts_test_l,
-                                            chunksize=ch_size),
+        for res in tqdm(pool.imap_unordered(dtw_match, ts_test_l),
+                                            # chunksize=ch_size),
                         total=len(ts_test_l)):
             res_l.append(res)
 
