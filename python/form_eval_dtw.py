@@ -518,7 +518,7 @@ def get_samples()->List[Tuple]:
 def main()->None:
     set_run_mode("train")
     t1 = time.time()
-    no_prc = cpu_count()-1
+    no_prc = cpu_count()-3
 
     # reading train data
     df_train = read_raw_ts(t1, no_prc)
