@@ -214,7 +214,7 @@ def dtw_match(series: Tuple[str, int, int, np.ndarray])->pd.Series:
     """
     find the closest time series time series via dtw
     """
-    df_sub = df_g
+    # df_sub = df_g
     ts_name = series[0]
     ts_no = series[1]
     cls_type = series[2]
@@ -223,13 +223,9 @@ def dtw_match(series: Tuple[str, int, int, np.ndarray])->pd.Series:
     print("running dtw match for: {} - {}".format(ts_name,ts_no), flush=True)
     
     # tqdm.pandas()
-    sub_series = df_sub.apply(apply_dtw, args=(ts,)).reset_index(drop=True)
-    if sub_series.shape[0] != df_sub.shape[1]:
-        print("######## Issues ########")
-        print("ts: {} - {}".format(ts_name, no))
-        print("length sub_series: ", len(sub_series))
+    sub_series = df_g.apply(apply_dtw, args=(ts,)).reset_index(drop=True)
     idx_min = sub_series.idxmin()
-    series_min = df_sub.iloc[:,idx_min]
+    series_min = df_g.iloc[:,idx_min]
 
     s_res = pd.Series({
         'ts_1': ts_name,
