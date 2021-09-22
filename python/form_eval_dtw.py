@@ -64,7 +64,7 @@ def convert_row(s: pd.Series)-> Tuple[str, int, int, np.ndarray]:
     name = s['name']
     ts_no = s['no']
     type_cls = int(s.iloc[2])
-    ar = np.array(s.iloc[3:].dropna())
+    ar = np.array(s.iloc[3:].dropna(), dtype='float')
     return (name, ts_no, type_cls, ar)
 
 def separate_ucr_ts(df: pd.DataFrame) -> List[Tuple[str, int, int, np.ndarray]]:
@@ -244,7 +244,7 @@ def apply_dtw(s_test: pd.Series,
     """
     apply dtw to template and test array
     """
-    ar_test = np.array(s_test.iloc[3:].dropna().to_numpy())
+    ar_test = np.array(s_test.iloc[3:].dropna().to_numpy(dtype='float'))
     aln = dtw(ar_test, ar_tmpl,
               distance_only=True)
     
