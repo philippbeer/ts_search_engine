@@ -518,7 +518,7 @@ def get_samples()->List[Tuple]:
 def main()->None:
     set_run_mode("train")
     t1 = time.time()
-    no_prc = cpu_count()-3
+    no_prc = cpu_count()-1
 
     # reading train data
     df_train = read_raw_ts(t1, no_prc)
@@ -539,13 +539,13 @@ def main()->None:
     res_l = []
 
     t3 = time.time()
-    # ch_size = math.floor(len(ts_test_l)/no_prc)
+    ch_size = math.floor(len(ts_test_l)/(no_prc-1))
     print("###### Starting DTW comparison ######")
     with Pool(processes=no_prc,
               initializer=set_global_df,
               initargs=(df_train,)) as pool:
-        for res in tqdm(pool.imap_unordered(dtw_match, ts_test_l),
-                                            # chunksize=ch_size),
+        for res in tqdm(pool.imap_unordered(dtw_match, ts_test_l,
+                                            chunksize=ch_size),
                         total=len(ts_test_l)):
             res_l.append(res)
 
