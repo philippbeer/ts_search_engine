@@ -107,14 +107,13 @@ def separate_ucr_ts(df: pd.DataFrame) -> List[Tuple[str, np.ndarray]]:
 def full_fft(ts_name: str,
              no: int,
              type_cls: int,
-             ar: np.ndarray,
-             dt: float) -> pd.DataFrame:
+             ar: np.ndarray) -> pd.DataFrame:
     # full FFT
     n = ar.shape[0]
     transform_name = 'fft'
     fhat = np.abs(np.fft.fft(ar))   # compute FFT
     PSD = fhat * np.conj(fhat) / n  # power spectrum
-    fft_freqs = (1/(dt*n)) * np.arange(n) # create x-axis for frequencies
+    fft_freqs = cnf.REF_LEN/fhat.shape[0] * np.arange(n) # create x-axis for frequencies
     fft_freq_appx_idx = np.digitize(fft_freqs,freq_ranges)
 
     # create FFT dataframe
@@ -132,15 +131,14 @@ def full_fft(ts_name: str,
 def hamming_fft(ts_name: str,
                 no: int,
                 type_cls: int,
-                ar: np.ndarray,
-                dt: float) -> pd.DataFrame:
+                ar: np.ndarray) -> pd.DataFrame:
     # FFT with Hamming Window
     n = ar.shape[0]
     transform_name = 'Hamming'
     ar_hamming = ar * np.hamming(n)
     fhat_hamming = np.abs(np.fft.fft(ar_hamming))
     PSD_hamming = fhat_hamming * np.conj(fhat_hamming)
-    hamming_freqs = (1/(dt*n)) * np.arange(n)
+    hamming_freqs = cnf.REF_LEN/fhat_hamming.shape[0] * np.arange(n)
     hamming_freq_appx_idx = np.digitize(hamming_freqs,freq_ranges)
 
     # create hamming window df
@@ -159,8 +157,7 @@ def hamming_fft(ts_name: str,
 def welch_fft(ts_name: str,
               no: int,
               type_cls: int,
-              ar: np.ndarray,
-              dt: float):
+              ar: np.ndarray):
     # FFT with Welch method
 
     n = ar.shape[0]
@@ -171,6 +168,7 @@ def welch_fft(ts_name: str,
         seg_length = 10
     welch_freqs, PSD_welch = signal.welch(ar, nperseg=seg_length,
                                                      window='hamming')
+    welch_freqs = cnf.REF_LEN/n * welch_freqs # adjusting to reference length of ts
     welch_freq_apx_idx = np.digitize(welch_freqs, freq_ranges)
 
     # create Welch window dataframe
@@ -209,7 +207,6 @@ def create_df_apx(ts_name: str,
 
 def compute_fr_ranges(ts_t: Tuple[str, int,
                                   int, np.array]) -> pd.DataFrame:
-    dt = 0.001
     ts_name = ts_t[0]
     no = ts_t[1]
     type_cls = ts_t[2]
@@ -217,15 +214,14 @@ def compute_fr_ranges(ts_t: Tuple[str, int,
 
     
     # full FFT
-    df_fft = full_fft(ts_name, no, type_cls, ar, dt)
+    df_fft = full_fft(ts_name, no, type_cls, ar)
     # Hamming window (global)
-    df_hamming = hamming_fft(ts_name, no, type_cls, ar, dt)
+    df_hamming = hamming_fft(ts_name, no, type_cls, ar)
     # Welch's method (hamming window)
     df_welch = welch_fft(ts_name=ts_name,
                          no=no,
                          type_cls=type_cls,
-                         ar=ar,
-                         dt=dt)
+                         ar=ar)
 
     # combine results
     df_res = pd.concat([df_fft, df_hamming, df_welch])
