@@ -41,7 +41,8 @@ def find_delta_min(s: pd.Series) -> pd.Series:
             'class_2': min_series['class_2'],
             'type': min_series['type'],
             'match_score': max_f_match,
-            'min_kpi': kpi
+            'min_kpi': kpi,
+            'value': min_series[kpi]
         }, index=[i])
 
         df_res = df_res.append(df_tmp)
@@ -116,6 +117,7 @@ def main():
 
     print("concatenate dfs")
     df_res = pd.concat(res_l)
+    df_res.sort_values(['ts_1', 'no_1', 'match_score', 'type'], inplace=True)
     concat_time = time.time()
     print("concatenated in {}".format(concat_time-mp_time))
 

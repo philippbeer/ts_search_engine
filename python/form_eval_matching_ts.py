@@ -166,9 +166,13 @@ def main():
 
 
     # filtering on window type to avoid duplicates due to window type
-    df_sample = df_test[df_test['type']=='fft'].groupby('ts_name')\
-        ['ts_name', 'no'].apply(lambda x: x.sample(min(len(x), 10)))
-    filter = list(zip(df_sample['ts_name'], df_sample['no'])) # extracting the key combinations to filter
+    # df_sample = df_test[df_test['type']=='fft'].groupby('ts_name')\
+    #     ['ts_name', 'no'].apply(lambda x: x.sample(min(len(x), 10)))
+    # filter = list(zip(df_sample['ts_name'], df_sample['no'])) # extracting the key combinations to filter
+
+    #rerun with reference frequency
+    df_dtw = pd.read_csv("../data/df_dtw_comp.csv")
+    filter = list(zip(df_dtw['ts_1'],df_dtw['no_1']))
     # ensure that each window type is available for sampled time series
     df_sample = df_test[df_test.set_index(['ts_name', 'no']).index.isin(filter)]
     ts_l = list(df_sample.values) # convert dataframe to list of elements

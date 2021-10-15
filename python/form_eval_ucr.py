@@ -113,7 +113,8 @@ def full_fft(ts_name: str,
     transform_name = 'fft'
     fhat = np.abs(np.fft.fft(ar))   # compute FFT
     PSD = fhat * np.conj(fhat) / n  # power spectrum
-    fft_freqs = cnf.REF_LEN/fhat.shape[0] * np.arange(n) # create x-axis for frequencies
+    PSD = PSD.real
+    fft_freqs = np.arange(n)/n # create x-axis for frequencies
     fft_freq_appx_idx = np.digitize(fft_freqs,freq_ranges)
 
     # create FFT dataframe
@@ -138,7 +139,8 @@ def hamming_fft(ts_name: str,
     ar_hamming = ar * np.hamming(n)
     fhat_hamming = np.abs(np.fft.fft(ar_hamming))
     PSD_hamming = fhat_hamming * np.conj(fhat_hamming)
-    hamming_freqs = cnf.REF_LEN/fhat_hamming.shape[0] * np.arange(n)
+    PSD_hamming = PSD_hamming.real
+    hamming_freqs = np.arange(n)/n
     hamming_freq_appx_idx = np.digitize(hamming_freqs,freq_ranges)
 
     # create hamming window df
@@ -168,7 +170,7 @@ def welch_fft(ts_name: str,
         seg_length = 10
     welch_freqs, PSD_welch = signal.welch(ar, nperseg=seg_length,
                                                      window='hamming')
-    welch_freqs = cnf.REF_LEN/n * welch_freqs # adjusting to reference length of ts
+    PSD_welch = PSD_welch.real 
     welch_freq_apx_idx = np.digitize(welch_freqs, freq_ranges)
 
     # create Welch window dataframe
@@ -258,9 +260,9 @@ def transform_raw_ts(start_time: datetime.date,
 
         print("Starting Fourier transform")
         approx_l = []
-        start = -1
-        stop = 3
-        steps = 410
+        start = -4
+        stop = 1
+        steps = 501
         with Pool(processes=no_prc,
                   initializer=set_franges,
                   initargs=(start, stop, steps)) as pool:
@@ -327,15 +329,15 @@ def reduce_to_top_frequencies(start_time: datetime.date,
             df_sub['freq_apx_idx'] = df_sub['freq_apx_idx'].astype(int)
 
             freq_l = df_sub['freq_apx_idx'].tolist()
-            PSD_l = df_sub['PSD'].tolist()
-
+            PSD_tmp = df_sub['PSD'].tolist()
+            PSD_l = [val.real for val in PSD_tmp]
             # returns largest index positions sorted from smallest to biggest
             try:
                 idx_powerful_PSD = sorted(range(len(PSD_l)), key= lambda
                                       x: PSD_l[x])[-N:]
             except TypeError:
-                print("ts_type: {}\nts_name: {}\nno: {}\ncls_type: {}"\
-                      .format(ts_type,ts_name,no,cls_type))
+                print("\nts_type: {}\nts_name: {}\nno: {}\ncls_type: {},\nPSD_L: {},\nN: {}"\
+                      .format(ts_type,ts_name,no,cls_type, PSD_l,N))
 
 
             # get the largest values by their index into the list
@@ -402,6 +404,7 @@ def compute_ts_stats(start_time: datetime.date,
 
 
         df_res.to_csv(ts_stats_fp, index=False)
+        print("stats df written to file!")
 
         stats_created_time = datetime.now()-function_time
         print("statistics and trend fit created in: {}".format(stats_created_time))
