@@ -57,7 +57,7 @@ MEAN_THRESH =2.5
 NO_TOP_FREQ = 5
 
 # Matching criteria frequencies
-MATCH_SCORE_THRESH = 10**4+10**3
+MATCH_SCORE_THRESH = 10**3
 
 # Ref Frequency Length
 REF_LEN = 176
