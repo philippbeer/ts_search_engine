@@ -72,7 +72,8 @@ def full_fft(ts_name:str,
     transform_name = 'fft'
     fhat = np.abs(np.fft.fft(ar))   # compute FFT
     PSD = fhat * np.conj(fhat) / n  # power spectrum
-    fft_freqs = (1/(dt*n)) * np.arange(n) # create x-axis for frequencies
+    PSD = PSD.real
+    fft_freqs = np.arange(n)/n # create x-axis for frequencies
     fft_freq_appx_idx = np.digitize(fft_freqs,freq_ranges)
 
     # create FFT dataframe
@@ -93,7 +94,8 @@ def hamming_fft(ts_name: str,
     ar_hamming = ar * np.hamming(n)
     fhat_hamming = np.abs(np.fft.fft(ar_hamming))
     PSD_hamming = fhat_hamming * np.conj(fhat_hamming)
-    hamming_freqs = (1/(dt*n)) * np.arange(n)
+    PSD_hamming = PSD_hamming.real
+    hamming_freqs = np.arange(n)/n
     hamming_freq_appx_idx = np.digitize(hamming_freqs,freq_ranges)
 
     # create hamming window df
@@ -194,12 +196,12 @@ def main():
     start_time = datetime.now()
     # loading m4 competition data
 
-    hourly_fp = "../m4_data/hourly-train.csv"
-    daily_fp = "../m4_data/Daily-train.csv"
-    weekly_fp = "../m4_data/Weekly-train.csv"
-    monthly_fp = "../m4_data/Monthly-train.csv"
-    quarterly_fp = "../m4_data/Quarterly-train.csv"
-    yearly_fp = "../m4_data/Yearly-train.csv"
+    hourly_fp = "../../m4_data/hourly-train.csv"
+    daily_fp = "../../m4_data/Daily-train.csv"
+    weekly_fp = "../../m4_data/Weekly-train.csv"
+    monthly_fp = "../../m4_data/Monthly-train.csv"
+    quarterly_fp = "../../m4_data/Quarterly-train.csv"
+    yearly_fp = "../../m4_data/Yearly-train.csv"
                         
     m4_l = [hourly_fp, daily_fp, weekly_fp,
         monthly_fp, quarterly_fp, yearly_fp]
@@ -256,7 +258,7 @@ def main():
 
     df_approx = pd.concat(approx_l)
 
-    df_approx.to_csv("../data/df_apx_win.csv", index=False)
+    df_approx.to_csv("../../data/df_apx_win_m4.csv", index=False)
 
     print("computation completed after: {}".format(datetime.now()-start_time))
 

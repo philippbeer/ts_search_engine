@@ -522,7 +522,7 @@ def main()->None:
 
     # reading train data
     df_train = read_raw_ts(t1, no_prc)
-    # df_train = df_train.sample(1000)
+    df_train = df_train.sample(1000)
 
     set_global_df(df_train)
 
@@ -532,7 +532,7 @@ def main()->None:
     filt = get_samples()
     df_test = read_raw_ts(t2, no_prc, filt)
 
-    # df_test = df_test.sample(10)
+    df_test = df_test.sample(10)
     ts_test_l = df_to_list(df_test)
 
     # run dtw comparison
@@ -553,7 +553,7 @@ def main()->None:
     print("###### DTW comparison completed in {:.2f}s ######".format(time.time()-t3))
     # print("df_res: ", df_res.head())
 
-    df_res.to_csv("../data/df_dtw_comp.csv", index=False)
+    df_res.to_csv("../data/defense/df_dtw_comp_defense.csv", index=False)
     print("computation completed after: {:.2f}".format(time.time()-t1))
 
 

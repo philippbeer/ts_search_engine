@@ -143,7 +143,7 @@ def main():
     print("data read")
     print("Runtime: {}".format(datetime.now()-start_time))
     # read top frequency data
-    df_top = pd.read_csv("../data/df_freq_l.csv")
+    df_top = pd.read_csv("../../data/df_freq_l_m4.csv")
     # df_top = df_top[:10000]
     # df_top = df_top[df_top['ts_name'].str.contains('H')]
 
@@ -168,7 +168,7 @@ def main():
     print("Results concatenated, runtime: {}".format(datetime.now()-start_time))
           
     
-    df_res.to_csv("../data/df_stats.csv", index=False)
+    df_res.to_csv("../../data/df_stats_m4.csv", index=False)
 
     print("\nstatistics and trend fit created, all done!, total runtime: {}".format(datetime.now()-start_time))
 
